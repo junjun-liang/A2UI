@@ -12,25 +12,4 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-[project]
-name = "personalized-learning-agent"
-version = "0.1.0"
-description = "A2A Agent for generating personalized A2UI learning materials"
-requires-python = ">=3.14"
-dependencies = [
-    "google-adk>=1.28.1",
-    "google-genai>=1.27.0",
-    "google-cloud-storage>=2.10.0",
-    "python-dotenv>=1.0.0",
-    "certifi>=2023.0.0",
-]
-
-[project.optional-dependencies]
-dev = [
-    "pytest>=7.0.0",
-    "pytest-asyncio>=0.21.0",
-]
-
-[build-system]
-requires = ["hatchling"]
-build-backend = "hatchling.build"
+from a2ui.core.version import __version__ as __version__
