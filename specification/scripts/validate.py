@@ -24,14 +24,18 @@ import shutil
 def run_ajv(schema_path, data_paths, refs=None):
     """Runs ajv validate via subprocess. Batch validates multiple data paths."""
     repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), "../.."))
-    # Try to find local ajv in specification/v0_9/test first
-    local_ajv = os.path.join(repo_root, "specification", "v0_9", "test", "node_modules", ".bin", "ajv")
+    # Try to find local ajv in root node_modules or specification/v0_9/test
+    local_ajvs = [
+        os.path.join(repo_root, "node_modules", ".bin", "ajv"),
+        os.path.join(repo_root, "specification", "v0_9", "test", "node_modules", ".bin", "ajv"),
+    ]
+    local_ajv = next((path for path in local_ajvs if os.path.exists(path)), None)
     
-    if os.path.exists(local_ajv):
+    if local_ajv:
         cmd = [local_ajv, "validate", "-s", schema_path, "--spec=draft2020", "--strict=false", "-c", "ajv-formats"]
     else:
-        # Fallback to pnpm dlx with both packages
-        cmd = ["pnpm", "dlx", "--package=ajv-cli", "--package=ajv-formats", "ajv", "validate", "-s", schema_path, "--spec=draft2020", "--strict=false", "-c", "ajv-formats"]
+        # Fallback to yarn dlx with both packages
+        cmd = ["yarn", "dlx", "--package=ajv-cli", "--package=ajv-formats", "ajv", "validate", "-s", schema_path, "--spec=draft2020", "--strict=false", "-c", "ajv-formats"]
         
     if refs:
         for ref in refs:
@@ -84,6 +88,86 @@ def validate_messages(root_schema, example_files, refs=None, temp_dir="temp_val"
 
     return success
 
+def compare_schemas(subset_path, standard_path):
+    """Compares that subset schema is a subset of standard schema.
+    
+    Allows object keys and string arrays to be subsets. For non-string arrays
+    (e.g., arrays of objects), we enforce element-by-element equality in length 
+    and structure to simplify position-dependent matching.
+    """
+    print(f"  Comparing {os.path.basename(subset_path)} is a subset of {os.path.basename(standard_path)}...")
+    try:
+        with open(subset_path, 'r') as f:
+            subset = json.load(f)
+    except (FileNotFoundError, json.JSONDecodeError) as e:
+        print(f"    [FAIL] Error loading or parsing subset schema '{os.path.basename(subset_path)}': {e}")
+        return False
+
+    try:
+        with open(standard_path, 'r') as f:
+            standard = json.load(f)
+    except (FileNotFoundError, json.JSONDecodeError) as e:
+        print(f"    [FAIL] Error loading or parsing standard schema '{os.path.basename(standard_path)}': {e}")
+        return False
+
+    success = True
+    
+    # Approved exceptions where subset is generic and standard is restrictive
+    approved_exceptions = {
+        "properties.surfaceUpdate.properties.components.items.properties.component.additionalProperties",
+        "properties.beginRendering.properties.styles.additionalProperties"
+    }
+
+    def get_type_str(val):
+        if isinstance(val, dict): return "object"
+        if isinstance(val, list): return "array"
+        return "primitive"
+
+    def compare(sub, std, path=""):
+        nonlocal success
+        sub_type = get_type_str(sub)
+        std_type = get_type_str(std)
+
+        if sub_type != std_type:
+             print(f"    [FAIL] Type mismatch at {path}: subset={sub_type}, standard={std_type}")
+             success = False
+             return
+
+        if sub_type == "object":
+             for key in sub:
+                 new_path = f"{path}.{key}" if path else key
+                 if key not in std:
+                      print(f"    [FAIL] Key '{key}' in subset but missing in standard at {new_path}")
+                      success = False
+                 else:
+                      compare(sub[key], std[key], new_path)
+        elif sub_type == "array":
+             if all(isinstance(x, str) for x in sub) and all(isinstance(x, str) for x in std):
+                  if not set(sub).issubset(set(std)):
+                      print(f"    [FAIL] String array is not a subset at {path}: subset={sub}, standard={std}")
+                      success = False
+             else:
+                  # For non-string arrays (e.g. arrays of objects like inside anyOf), 
+                  # order and length typically matter for structure matching in this script.
+                  # To avoid complex matching, we enforce equality in length and structure.
+                  if len(sub) != len(std):
+                      print(f"    [FAIL] Array length mismatch at {path}: subset={len(sub)}, standard={len(std)}")
+                      success = False
+                  else:
+                      for i in range(len(sub)):
+                          compare(sub[i], std[i], f"{path}[{i}]")
+        elif sub_type == "primitive":
+             if sub != std:
+                 if path in approved_exceptions:
+                      return
+                 print(f"    [FAIL] Value mismatch at {path}: subset={sub}, standard={std}")
+                 success = False
+
+    compare(subset, standard)
+    if success:
+         print("    [PASS] Subset comparison")
+    return success
+
 def main():
     repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), "../.."))
     
@@ -93,6 +177,7 @@ def main():
     configs = {
         "v0_8": {
             "root_schema": "specification/v0_8/json/server_to_client_with_standard_catalog.json",
+            "subset_schema": "specification/v0_8/json/server_to_client.json",
             "refs": [],
             "examples": "specification/v0_8/json/catalogs/basic/examples/*.json"
         },
@@ -100,9 +185,17 @@ def main():
             "root_schema": "specification/v0_9/json/server_to_client.json",
             "refs": [
                 "specification/v0_9/json/common_types.json",
-                "specification/v0_9/json/basic_catalog.json"
+                "specification/v0_9/catalogs/basic/catalog.json"
             ],
-            "examples": "specification/v0_9/json/catalogs/basic/examples/*.json"
+            "examples": "specification/v0_9/catalogs/basic/examples/*.json"
+        },
+        "v1_0": {
+            "root_schema": "specification/v1_0/json/server_to_client.json",
+            "refs": [
+                "specification/v1_0/json/common_types.json",
+                "specification/v1_0/catalogs/basic/catalog.json"
+            ],
+            "examples": "specification/v1_0/catalogs/basic/examples/*.json"
         }
     }
     
@@ -123,12 +216,12 @@ def main():
         refs = []
         for ref in config["refs"]:
             ref_path = os.path.join(repo_root, ref)
-            if "basic_catalog.json" in ref:
-                # v0.9 basic_catalog needs aliasing to catalog.json as expected by server_to_client.json
+            if ref.endswith("catalog.json"):
+                # catalog needs aliasing to catalog.json as expected by server_to_client.json
                 with open(ref_path, 'r') as f:
                     catalog = json.load(f)
                 if "$id" in catalog:
-                    catalog["$id"] = catalog["$id"].replace("basic_catalog.json", "catalog.json")
+                    catalog["$id"] = f"https://a2ui.org/specification/{version}/catalog.json"
                 alias_path = os.path.join(version_temp_dir, "catalog.json")
                 with open(alias_path, 'w') as f:
                     json.dump(catalog, f)
@@ -139,6 +232,11 @@ def main():
         example_pattern = os.path.join(repo_root, config["examples"])
         example_files = glob.glob(example_pattern)
         
+        if "subset_schema" in config:
+            subset_path = os.path.join(repo_root, config["subset_schema"])
+            if not compare_schemas(subset_path, root_schema):
+                overall_success = False
+                
         if not example_files:
             print(f"No examples found for {version} matching {example_pattern}")
         else:

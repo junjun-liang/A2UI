@@ -49,7 +49,7 @@ Signals the client to initialize and render a surface.
     | ----------- | ------ | -------- | --------------------------------------------------------------------------------------- |
     | `surfaceId` | string | ✅        | Unique identifier for this surface.                                                     |
     | `root`      | string | ✅        | The `id` of the component that should be the root of the UI tree for this surface.      |
-    | `catalogId` | string | ❌        | Identifier for the component catalog. Defaults to the v0.8 standard catalog if omitted. |
+    | `catalogId` | string | ❌        | Identifier for the component catalog. Defaults to the v0.8 basic catalog if omitted. |
     | `styles`    | object | ❌        | Styling information for the UI, as defined by the catalog.                              |
 
     ### Example
@@ -109,7 +109,7 @@ Signals the client to initialize and render a surface.
       "version": "v0.9",
       "createSurface": {
         "surfaceId": "main",
-        "catalogId": "https://a2ui.org/specification/v0_9/basic_catalog.json"
+        "catalogId": "https://a2ui.org/specification/v0_9/catalogs/basic/catalog.json"
       }
     }
     ```
@@ -248,6 +248,7 @@ Add or update components within a surface.
 
     ### Usage Notes
 
+    Keep these usage notes in mind:
     - One component must be designated as the `root` in the `beginRendering` message to serve as the tree root.
     - Components form an adjacency list (flat structure with ID references).
     - Sending a component with an existing ID updates that component.
@@ -362,6 +363,7 @@ Add or update components within a surface.
 
     ### Usage Notes
 
+    Keep these usage notes in mind:
     - One component must have `"id": "root"` to serve as the tree root (convention, not a separate message field).
     - Component type is a string (`"component": "Text"`) instead of a wrapper object.
     - Properties are flat on the component object (no nesting under type key).
@@ -370,12 +372,13 @@ Add or update components within a surface.
 
 ### Errors
 
-| Error                  | Cause                                  | Solution                                                                                                               |
-| ---------------------- | -------------------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
-| Surface not found      | `surfaceId` does not exist             | Ensure a unique `surfaceId` is used consistently for a given surface. Surfaces are implicitly created on first update. |
-| Invalid component type | Unknown component type                 | Check component type exists in the negotiated catalog.                                                                 |
-| Invalid property       | Property doesn't exist for this type   | Verify against catalog schema.                                                                                         |
-| Circular reference     | Component references itself as a child | Fix component hierarchy.                                                                                               |
+| Error                  | Cause                                  | Solution                                                                                                                                                                                      |
+| ---------------------- | -------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Surface already exists | `surfaceId` is already in use          | Ensure `surfaceId` is globally unique for the renderer's lifetime. If using an orchestrator with subagents, the orchestrator is empowered to manage surface IDs as needed to avoid conflicts. |
+| Surface not found      | `surfaceId` does not exist             | Ensure `surfaceId` matches the created surface. In v0.8, surfaces are implicit, but v0.9+ requires `createSurface`.                                                                           |
+| Invalid component type | Unknown component type                 | Check component type exists in the negotiated catalog.                                                                                                                                        |
+| Invalid property       | Property doesn't exist for this type   | Verify against catalog schema.                                                                                                                                                                |
+| Circular reference     | Component references itself as a child | Fix component hierarchy.                                                                                                                                                                      |
 
 ---
 
@@ -455,6 +458,7 @@ Update the data model that components bind to.
 
     ### Usage Notes
 
+    Keep these usage notes in mind:
     - Data model is per-surface.
     - Components automatically re-render when their bound data changes.
     - Prefer granular updates to specific paths over replacing the entire model.
@@ -520,6 +524,7 @@ Update the data model that components bind to.
 
     ### Usage Notes
 
+    Keep these usage notes in mind:
     - v0.9 uses standard JSON Pointer paths and plain JSON values — no typed wrappers.
     - `path` defaults to `"/"` (root) if omitted.
     - `value` can be any JSON type (string, number, boolean, object, array, null). Omit to delete.
@@ -582,22 +587,26 @@ Remove a surface and all its components and data.
 
 | Property    | Type   | Required | Description                 |
 | ----------- | ------ | -------- | --------------------------- |
-| `surfaceId` | string | ✅        | ID of the surface to delete |
+| `surfaceId` | string | ✅       | ID of the surface to delete |
 
 ### Usage Notes
 
-- Removes all components associated with the surface
-- Clears the data model for the surface
-- Client should remove the surface from the UI
-- Safe to delete non-existent surface (no-op)
-- Use when closing modals, dialogs, or navigating away
-- Identical structure in both versions (v0.9 just adds the `version` field)
+Keep these usage notes in mind:
+
+- Removes all components associated with the surface.
+- Clears the data model for the surface.
+- Client should remove the surface from the UI.
+- Safe to delete non-existent surface (no-op).
+- Use when closing modals, dialogs, or navigating away.
+- Identical structure in both versions (v0.9 just adds the `version` field).
 
 ---
 
 ## Message Ordering
 
 ### Requirements
+
+Message ordering must satisfy the following requirements:
 
 1. `beginRendering` must come after the initial `surfaceUpdate` messages for that surface.
 2. `surfaceUpdate` can come before or after `dataModelUpdate`.
@@ -649,15 +658,15 @@ Remove a surface and all its components and data.
 
     Validate against:
 
-    - **[server_to_client.json](https://a2ui.org/specification/v0_8/server_to_client.json)**: Message envelope schema
-    - **[standard_catalog_definition.json](https://a2ui.org/specification/v0_8/standard_catalog_definition.json)**: Component schemas
+    - **[server_to_client.json](../../specification/v0_8/json/server_to_client.json)**: Message envelope schema.
+    - **[standard_catalog_definition.json](../../specification/v0_8/json/standard_catalog_definition.json)**: Component schemas.
 
 === "v0.9"
 
     Validate against:
 
-    - **[server_to_client.json](https://a2ui.org/specification/v0_9/server_to_client.json)**: Message envelope schema
-    - **[basic_catalog.json](https://a2ui.org/specification/v0_9/basic_catalog.json)**: Component schemas
+    - **[server_to_client.json](../../specification/v0_9/json/server_to_client.json)**: Message envelope schema.
+    - **[catalogs/basic/catalog.json](../../specification/v0_9/catalogs/basic/catalog.json)**: Component schemas.
 
 ## Further Reading
 

@@ -6,27 +6,27 @@ Get hands-on with A2UI by running the restaurant finder demo. This guide will ha
 
 By the end of this quickstart, you'll have:
 
-- ✅ A running web app with A2UI Lit renderer
-- ✅ A Gemini-powered agent that generates dynamic UIs
-- ✅ An interactive restaurant finder with form generation, time selection, and confirmation flows
-- ✅ Understanding of how A2UI messages flow from agent to UI
+- A running web app with A2UI Lit renderer.
+- A Gemini-powered agent that generates dynamic UIs.
+- An interactive restaurant finder with form generation, time selection, and confirmation flows.
+- Understanding of how A2UI messages flow from agent to UI.
 
 ## Prerequisites
 
 Before you begin, make sure you have:
 
-- **Node.js** (v18 or later) — [Download here](https://nodejs.org/)
+- **Node.js** (v18 or later with [Corepack](https://nodejs.org/api/corepack.html) enabled) — [Download here](https://nodejs.org/)
 - **uv** (Python package manager) — [Install here](https://docs.astral.sh/uv/getting-started/installation/) (used to run the Python agent backend)
 - **A Gemini API key** — [Get one free from Google AI Studio](https://aistudio.google.com/apikey)
 
-> ⚠️ **Security Notice**
->
-> This demo runs an A2A agent that uses Gemini to generate A2UI responses. The agent has access to your API key and will make requests to Google's Gemini API. Always review agent code before running it in production environments.
+WARNING: Security Notice
+
+This demo runs an A2A agent that uses Gemini to generate A2UI responses. The agent has access to your API key and will make requests to Google's Gemini API. Always review agent code before running it in production environments.
 
 ## Step 1: Clone the Repository
 
 ```bash
-git clone https://github.com/google/a2ui.git
+git clone https://github.com/a2ui-project/a2ui.git
 cd a2ui
 ```
 
@@ -38,7 +38,9 @@ Export your Gemini API key as an environment variable:
 export GEMINI_API_KEY="your_gemini_api_key_here"
 ```
 
-## Step 3: Navigate to the Lit Client
+## Step 3: Navigate to the Lit Client Samples Directory
+
+The client application source code is located in `samples/client/lit/shell`. Navigate to the parent samples directory to run the demo:
 
 ```bash
 cd samples/client/lit
@@ -46,12 +48,24 @@ cd samples/client/lit
 
 ## Step 4: Install and Run
 
-Run the one-command demo launcher:
+Run the demo launcher (ensuring Corepack is enabled so Node automatically fetches the correct Yarn version):
 
 ```bash
-npm install
-npm run demo:all
+# Enable Corepack (macOS Homebrew users: see tip below)
+corepack enable
+
+yarn install
+yarn demo:restaurant
 ```
+
+> [!TIP]
+> **macOS Homebrew Users:** If you have standalone package managers installed, unlink conflicts before installing Corepack so Corepack can manage versions per-project:
+>
+> ```bash
+> brew unlink yarn pnpm
+> brew install corepack
+> corepack enable
+> ```
 
 This command will:
 
@@ -61,9 +75,32 @@ This command will:
 4. Launch the development server
 5. Open your browser to `http://localhost:5173`
 
-> ✅ **Demo Running**
->
-> If everything worked, you should see the web app in your browser. The agent is now ready to generate UI!
+The source code for the Restaurant Finder agent is located in [`samples/agent/adk/restaurant_finder`](../samples/agent/adk/restaurant_finder).
+
+> [!NOTE]
+> **Package Manager Usage:** Running the quickstart demo application within the A2UI repository requires Yarn as configured by Corepack workspaces. For your own regular usage and standalone projects outside this repository, use the package manager of your choice (e.g. npm, pnpm).
+
+### Running Manually (Alternative)
+
+If you prefer to run the agent and client in separate terminals, or need to troubleshoot:
+
+**1. Run the Agent:**
+
+```bash
+cd samples/agent/adk/restaurant_finder
+uv run .
+```
+
+**2. Run the Client:**
+
+```bash
+cd samples/client/lit/shell
+yarn dev
+```
+
+NOTE: Demo Running
+
+If everything worked, you should see the web app in your browser. The agent is now ready to generate UI!
 
 ## Step 5: Try It Out
 
@@ -110,7 +147,7 @@ In the web app, try these prompts:
 
 Let's peek at what the agent is sending. Here's a simplified example of the JSON messages:
 
-=== "v0.8 (Stable)"
+=== "v0.8 (Legacy)"
 
     **Defining the UI:**
 
@@ -141,18 +178,18 @@ Let's peek at what the agent is sending. Here's a simplified example of the JSON
     {"beginRendering": {"surfaceId": "main", "root": "header"}}
     ```
 
-=== "v0.9 (Draft)"
+=== "v0.9 (Stable)"
 
     **Creating the surface:**
 
     ```json
-    {"version": "v0.9", "createSurface": {"surfaceId": "main", "catalogId": "https://a2ui.org/specification/v0_9/basic_catalog.json"}}
+    {"version": "v0.9.1", "createSurface": {"surfaceId": "main", "catalogId": "https://a2ui.org/specification/v0_9_1/catalogs/basic/catalog.json"}}
     ```
 
     **Defining the UI:**
 
     ```json
-    {"version": "v0.9", "updateComponents": {"surfaceId": "main", "components": [
+    {"version": "v0.9.1", "updateComponents": {"surfaceId": "main", "components": [
       {"id": "header", "component": "Text", "text": "# Book Your Table", "variant": "h1"},
       {"id": "date-picker", "component": "DateTimeInput", "label": "Select Date", "value": {"path": "/reservation/date"}, "enableDate": true},
       {"id": "submit-text", "component": "Text", "text": "Confirm Reservation"},
@@ -163,14 +200,14 @@ Let's peek at what the agent is sending. Here's a simplified example of the JSON
     **Populating data:**
 
     ```json
-    {"version": "v0.9", "updateDataModel": {"surfaceId": "main", "path": "/reservation", "value": {"date": "2025-12-15", "time": "19:00", "guests": 2}}}
+    {"version": "v0.9.1", "updateDataModel": {"surfaceId": "main", "path": "/reservation", "value": {"date": "2025-12-15", "time": "19:00", "guests": 2}}}
     ```
 
     Note: In v0.9, `createSurface` replaces `beginRendering`, components use a flatter format, and the data model uses plain JSON values instead of typed adjacency lists.
 
-> 💡 **It's Just JSON**
->
-> Notice how readable and structured this is? LLMs can generate this easily, and it's safe to transmit and render—no code execution required.
+TIP: It's Just JSON
+
+Notice how readable and structured this is? LLMs can generate this easily, and it's safe to transmit and render—no code execution required.
 
 ## Exploring Other Demos
 
@@ -181,20 +218,19 @@ The repository includes several other demos:
 See all available A2UI components:
 
 ```bash
-npm start -- gallery
+yarn start gallery
 ```
 
 This runs a client-only demo showcasing every standard component (Card, Button, TextField, Timeline, etc.) with live examples and code samples.
 
-### Contact Lookup Demo
+### Other Languages and Frameworks
 
-Try a different agent use case:
+While this guide uses the Lit client as an example, A2UI provides samples for other popular frameworks in the `samples/client` directory:
 
-```bash
-npm run demo:contact
-```
+- **Angular**: `samples/client/angular`
+- **React**: `samples/client/react`
 
-This demonstrates a contact lookup agent that generates search forms and result lists.
+Explore the [samples/client](../samples/client) directory to see all available client implementations.
 
 ## What's Next?
 
@@ -203,6 +239,7 @@ Now that you've seen A2UI in action, you're ready to:
 - **[Learn Core Concepts](concepts/overview.md)**: Understand surfaces, components, and data binding
 - **[Set Up Your Own Client](guides/client-setup.md)**: Integrate A2UI into your own app
 - **[Build an Agent](guides/agent-development.md)**: Create agents that generate A2UI responses
+- **[Use an Existing Agent App](guides/a2ui-with-any-agent-framework.md)**: Add A2UI through CopilotKit + AG-UI for ADK, LangGraph, CrewAI, Mastra, or a custom service
 - **[Explore the Protocol](reference/messages.md)**: Dive into the technical specification
 
 ## Troubleshooting
@@ -221,7 +258,7 @@ If you see errors about missing API keys:
 
 ### Connection Errors on Startup
 
-If you see `ERR_CONNECTION_REFUSED` errors when the browser opens, **don't worry** — this is a known race condition ([#587](https://github.com/google/A2UI/issues/587)). The web app starts faster than the Python agent backend. Just wait a few seconds and refresh the page.
+If you see `ERR_CONNECTION_REFUSED` errors when the browser opens, **don't worry** — this is a known race condition ([#587](https://github.com/a2ui-project/a2ui/issues/587)). The web app starts faster than the Python agent backend. Just wait a few seconds and refresh the page.
 
 ### Python / uv Issues
 
@@ -248,8 +285,8 @@ uv run .
 
 ### Still Having Issues?
 
-- Check the [GitHub Issues](https://github.com/google/a2ui/issues)
-- Review the [samples/client/lit/README.md](https://github.com/google/a2ui/tree/main/samples/client/lit)
+- Check the [GitHub Issues](https://github.com/a2ui-project/a2ui/issues)
+- Review the [samples/client/lit/README.md](../samples/client/lit)
 - Join the community discussions
 
 ## Understanding the Demo Code
